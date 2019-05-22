@@ -1,68 +1,73 @@
-// Package sqlxmigrate is a migration helper for Gorm (http://jinzhu.me/gorm/).
-// Gorm already have useful migrate functions
-// (http://jinzhu.me/gorm/database.html#migration), just misses
-// proper schema versioning and rollback cababilities.
+// Package sqlxmigrate is a migration helper for sqlx (https://github.com/jmoiron/sqlx/).
+// Enables schema versioning and rollback cababilities.
 //
 // Example:
 //
-//  package main
+// package main
 //
-//  import (
-//      "log"
+// import (
+// 	"database/sql"
+// 	"log"
 //
-//      "github.com/go-sqlxmigrate/sqlxmigrate"
-//      "github.com/jmoiron/sqlx"
-//      _ "github.com/lib/pq"
-//  )
+// 	"github.com/gitwak/sqlxmigrate"
+// 	"github.com/jmoiron/sqlx"
+// 	_ "github.com/lib/pq"
+// )
 //
-//  type Person struct {
-//      gorm.Model
-//      Name string
-//  }
+// func main() {
+// 	// this Pings the database trying to connect, panics on error
+// 	// use sqlx.Open() for sql.Open() semantics
+// 	db, err := sqlx.Connect("postgres", "host=127.0.0.1 user=postgres dbname=sqlxmigrate_test port=5433 sslmode=disable password=postgres")
+// 	if err != nil {
+// 		log.Fatalf("main : Register DB : %v", err)
+// 	}
+// 	defer db.Close()
 //
-//  type Pet struct {
-//      gorm.Model
-//      Name     string
-//      PersonID int
-//  }
+// 	m := sqlxmigrate.New(db, sqlxmigrate.DefaultOptions, []*sqlxmigrate.Migration{
+// 		// create persons table
+// 		{
+// 			ID: "201608301400",
+// 			Migrate: func(tx *sql.Tx) error {
+// 				q := `CREATE TABLE "people" (
+// 						"id" serial,
+// 						"created_at" timestamp with time zone,
+// 						"updated_at" timestamp with time zone,
+// 						"deleted_at" timestamp with time zone,
+// 						"name" text ,
+// 						PRIMARY KEY ("id")
+// 					)`
+// 				_, err = tx.Exec(q)
+// 				return err
+// 			},
+// 			Rollback: func(tx *sql.Tx) error {
+// 				q := `DROP TABLE IF EXISTS people`
+// 				_, err = tx.Exec(q)
+// 				return err
+// 			},
+// 		},
+// 		// add age column to persons
+// 		{
+// 			ID: "201608301415",
+// 			Migrate: func(tx *sql.Tx) error {
+// 				q := `ALTER TABLE people
+// 						ADD column age int
+// 					`
+// 				_, err = tx.Exec(q)
+// 				return err
+// 			},
+// 			Rollback: func(tx *sql.Tx) error {
+// 				q := `ALTER TABLE people
+// 						DROP column age`
+// 				_, err = tx.Exec(q)
+// 				return err
+// 			},
+// 		},
+// 	})
 //
-//  func main() {
-//      db, err := gorm.Open("postgres", "mydb.postgres")
-//      if err != nil {
-//          log.Fatal(err)
-//      }
-//      if err = db.DB().Ping(); err != nil {
-//          log.Fatal(err)
-//      }
+// 	if err = m.Migrate(); err != nil {
+// 		log.Fatalf("Could not migrate: %v", err)
+// 	}
+// 	log.Printf("Migration did run successfully")
+// }
 //
-//      db.LogMode(true)
-//
-//      m := sqlxmigrate.New(db, sqlxmigrate.DefaultOptions, []*sqlxmigrate.Migration{
-//          {
-//              ID: "201608301400",
-//              Migrate: func(tx *gorm.DB) error {
-//                  return tx.AutoMigrate(&Person{}).Error
-//              },
-//              Rollback: func(tx *gorm.DB) error {
-//                  return tx.DropTable("people").Error
-//              },
-//          },
-//          {
-//              ID: "201608301430",
-//              Migrate: func(tx *gorm.DB) error {
-//                  return tx.AutoMigrate(&Pet{}).Error
-//              },
-//              Rollback: func(tx *gorm.DB) error {
-//                  return tx.DropTable("pets").Error
-//              },
-//          },
-//      })
-//
-//      err = m.Migrate()
-//      if err == nil {
-//          log.Printf("Migration did run successfully")
-//      } else {
-//          log.Printf("Could not migrate: %v", err)
-//      }
-//  }
 package sqlxmigrate

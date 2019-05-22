@@ -177,6 +177,7 @@ below:
 
 ```bash
 # running tests for PostgreSQL
+export PG_CONN_STRING="host=127.0.0.1 user=postgres dbname=sqlxmigrate_test port=5433 sslmode=disable password=postgres"
 go test -tags postgresql
 
 # running test for MySQL
