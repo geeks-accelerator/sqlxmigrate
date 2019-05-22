@@ -12,8 +12,8 @@ unable to handle complex migrations and does not support persisting which migrat
 
 The project `gormigrate` github.com/go-gormigrate/gormigrate provides schema migration for the Gorm ORM. 
 While GORM has is place, there was an opportunity to replace GORM with the sqlx database package to provide 
-a more flexiable schema migration tool. 
-
+a more flexible schema migration tool. This project was original forked from gormigrate and then Gorm was 
+replaced with sqlx. 
 
 ## Supported databases
 
@@ -21,11 +21,9 @@ It supports any of the [databases sqlx supports]:
 
 - PostgreSQL
 
-
-### Mysql support:
-Need to determine a plan to abstract the database logic for creating and selecting tables that currently is buried in sqlxmigrate_test.go
-
-
+### Additional database support:
+Need to determine a plan to abstract the schema logic currently defined in sqlxmigrate_test.go 
+on a driver basis. The sql statement for creating a table in postgres, differs from MySql, etc. 
 
 ## Installing
 
@@ -39,6 +37,7 @@ go get -u github.com/gitwak/sqlxmigrate
 package main
 
 import (
+	"database/sql"
 	"log"
 
 	"github.com/gitwak/sqlxmigrate"
@@ -47,57 +46,51 @@ import (
 )
 
 func main() {
-	db, err := gorm.Open("postgres", "mydb.postgres")
+	// this Pings the database trying to connect, panics on error
+	// use sqlx.Open() for sql.Open() semantics
+	db, err := sqlx.Connect("postgres", "host=127.0.0.1 user=postgres dbname=sqlxmigrate_test port=5433 sslmode=disable password=postgres")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("main : Register DB : %v", err)
 	}
-
-	db.LogMode(true)
+	defer db.Close()
 
 	m := sqlxmigrate.New(db, sqlxmigrate.DefaultOptions, []*sqlxmigrate.Migration{
 		// create persons table
 		{
 			ID: "201608301400",
-			Migrate: func(tx *gorm.DB) error {
-				// it's a good pratice to copy the struct inside the function,
-				// so side effects are prevented if the original struct changes during the time
-				type Person struct {
-					gorm.Model
-					Name string
-				}
-				return tx.AutoMigrate(&Person{}).Error
+			Migrate: func(tx *sql.Tx) error {
+				q := `CREATE TABLE "people" (
+						"id" serial,
+						"created_at" timestamp with time zone,
+						"updated_at" timestamp with time zone,
+						"deleted_at" timestamp with time zone,
+						"name" text , 
+						PRIMARY KEY ("id")
+					)`
+				_, err = tx.Exec(q)
+				return err
 			},
-			Rollback: func(tx *gorm.DB) error {
-				return tx.DropTable("people").Error
+			Rollback: func(tx *sql.Tx) error {
+				q := `DROP TABLE IF EXISTS people`
+				_, err = tx.Exec(q)
+				return err
 			},
 		},
 		// add age column to persons
 		{
 			ID: "201608301415",
-			Migrate: func(tx *gorm.DB) error {
-				// when table already exists, it just adds fields as columns
-				type Person struct {
-					Age int
-				}
-				return tx.AutoMigrate(&Person{}).Error
+			Migrate: func(tx *sql.Tx) error {
+				q := `ALTER TABLE people 
+						ADD column age int 
+					`
+				_, err = tx.Exec(q)
+				return err
 			},
-			Rollback: func(tx *gorm.DB) error {
-				return tx.Table("people").DropColumn("age").Error
-			},
-		},
-		// add pets table
-		{
-			ID: "201608301430",
-			Migrate: func(tx *gorm.DB) error {
-				type Pet struct {
-					gorm.Model
-					Name     string
-					PersonID int
-				}
-				return tx.AutoMigrate(&Pet{}).Error
-			},
-			Rollback: func(tx *gorm.DB) error {
-				return tx.DropTable("pets").Error
+			Rollback: func(tx *sql.Tx) error {
+				q := `ALTER TABLE people 
+						DROP column age`
+				_, err = tx.Exec(q)
+				return err
 			},
 		},
 	})
@@ -118,36 +111,13 @@ before (in a new clean database). Remember to create everything here, all tables
 foreign keys and what more you need in your app.
 
 ```go
-type Person struct {
-	gorm.Model
-	Name string
-	Age int
-}
-
-type Pet struct {
-	gorm.Model
-	Name     string
-	PersonID int
-}
 
 m := sqlxmigrate.New(db, sqlxmigrate.DefaultOptions, []*sqlxmigrate.Migration{
     // you migrations here
 })
 
 m.InitSchema(func(tx *gorm.DB) error {
-	err := tx.AutoMigrate(
-		&Person{},
-		&Pet{},
-		// all other tables of you app
-	).Error
-	if err != nil {
-		return err
-	}
-
-	if err := tx.Model(Pet{}).AddForeignKey("person_id", "people (id)", "RESTRICT", "RESTRICT").Error; err != nil {
-		return err
-	}
-	// all other foreign keys...
+	// seed initial tables
 	return nil
 })
 ```
@@ -162,10 +132,6 @@ type Options struct {
 	TableName string
 	// The name of the column that stores the ID of migrations. Defaults to "id".
 	IDColumnName string
-	// UseTransaction makes SqlxMigrate execute migrations inside a single transaction.
-	// Keep in mind that not all databases support DDL commands inside transactions.
-	// Defaults to false.
-	UseTransaction bool
 }
 ```
 
@@ -187,7 +153,7 @@ go test -tags mysql
 go test -tags 'postgresql mysql'
 ```
 
-Or altenatively, you could use Docker to easily run tests on all databases
+Or alternatively, you could use Docker to easily run tests on all databases
 at once. To do that, make sure Docker is installed and running in your machine
 and then run:
 
