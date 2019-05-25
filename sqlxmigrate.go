@@ -121,6 +121,7 @@ func New(db *sqlx.DB, options *Options, migrations []*Migration) *Sqlxmigrate {
 	}
 }
 
+// SetLogger allows the default logger to be overwritten
 func (g *Sqlxmigrate) SetLogger(logger *log.Logger) {
 	g.log = logger
 }
@@ -153,6 +154,7 @@ func (g *Sqlxmigrate) MigrateTo(migrationID string) error {
 	return g.migrate(migrationID)
 }
 
+// migrate
 func (g *Sqlxmigrate) migrate(migrationID string) error {
 	if !g.hasMigrations() {
 		return ErrNoMigrationDefined
@@ -325,6 +327,7 @@ func (g *Sqlxmigrate) rollbackMigration(m *Migration) error {
 	if m.Rollback == nil {
 		return ErrRollbackImpossible
 	}
+	g.log.Printf("Migration %s rollback", m.ID)
 
 	if err := m.Rollback(g.tx); err != nil {
 		return err
@@ -332,7 +335,7 @@ func (g *Sqlxmigrate) rollbackMigration(m *Migration) error {
 
 	sql := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", g.options.TableName, g.options.IDColumnName)
 	sql = g.db.Rebind(sql)
-	g.log.Printf("rollbackMigration %s - %s", m.ID, sql)
+	g.log.Printf("Migration %s rollback - %s", m.ID, sql)
 
 	if _, err := g.tx.Exec(sql, m.ID); err != nil {
 		return err
@@ -362,19 +365,27 @@ func (g *Sqlxmigrate) runMigration(migration *Migration) error {
 	if len(migration.ID) == 0 {
 		return ErrMissingID
 	}
+	g.log.Printf("Migration %s - checking", migration.ID)
 
 	migrationRan, err := g.migrationRan(migration)
 	if err != nil {
 		return err
 	}
-	if !migrationRan {
+	if migrationRan {
+		g.log.Printf("Migration %s - already ran", migration.ID)
+	} else {
+		g.log.Printf("Migration %s - starting", migration.ID)
+
 		if err := migration.Migrate(g.tx); err != nil {
+			g.log.Printf("Migration %s - failed - %v", migration.ID, err)
 			return err
 		}
 
 		if err := g.insertMigration(migration.ID); err != nil {
 			return err
 		}
+
+		g.log.Printf("Migration %s - complete", migration.ID)
 	}
 	return nil
 }
@@ -399,7 +410,7 @@ func (g *Sqlxmigrate) migrationRan(m *Migration) (bool, error) {
 
 	query := fmt.Sprintf("SELECT count(0) FROM %s WHERE %s = ?", g.options.TableName, g.options.IDColumnName)
 	query = g.db.Rebind(query)
-	g.log.Printf("migrationRan %s - %s", m.ID, query)
+	g.log.Printf("Migration %s - %s", m.ID, query)
 
 	err := g.db.QueryRow(query, m.ID).Scan(&count)
 	if err != nil {
@@ -438,7 +449,7 @@ func (g *Sqlxmigrate) canInitializeSchema() (bool, error) {
 func (g *Sqlxmigrate) insertMigration(id string) error {
 	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (?)", g.options.TableName, g.options.IDColumnName)
 	sql = g.db.Rebind(sql)
-	g.log.Printf("insertMigration %s - %s", id, sql)
+	g.log.Printf("Migration %s - %s", id, sql)
 
 	if _, err := g.db.Exec(sql, id); err != nil {
 		err = errors.WithMessagef(err, "Query failed %s", sql)
