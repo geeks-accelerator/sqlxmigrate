@@ -3,7 +3,9 @@ package sqlxmigrate
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
+	"log"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -49,6 +51,7 @@ type Sqlxmigrate struct {
 	options    *Options
 	migrations []*Migration
 	initSchema InitSchemaFunc
+	log        *log.Logger
 }
 
 // ReservedIDError is returned when a migration is using a reserved ID
@@ -107,11 +110,19 @@ func New(db *sqlx.DB, options *Options, migrations []*Migration) *Sqlxmigrate {
 	if options.IDColumnSize == 0 {
 		options.IDColumnSize = DefaultOptions.IDColumnSize
 	}
+
+	l := log.New(os.Stdout, "sqlxmigrate : ", log.LstdFlags|log.Lmicroseconds|log.Lshortfile)
+
 	return &Sqlxmigrate{
 		db:         db,
 		options:    options,
 		migrations: migrations,
+		log:        l,
 	}
+}
+
+func (g *Sqlxmigrate) SetLogger(logger *log.Logger) {
+	g.log = logger
 }
 
 // InitSchema sets a function that is run if no migration is found.
@@ -321,6 +332,7 @@ func (g *Sqlxmigrate) rollbackMigration(m *Migration) error {
 
 	sql := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", g.options.TableName, g.options.IDColumnName)
 	sql = g.db.Rebind(sql)
+	g.log.Printf("rollbackMigration %s - %s", m.ID, sql)
 
 	if _, err := g.tx.Exec(sql, m.ID); err != nil {
 		return err
@@ -373,6 +385,8 @@ func (g *Sqlxmigrate) createMigrationTableIfNotExists() error {
 	}
 
 	sql := fmt.Sprintf("CREATE TABLE %s (%s VARCHAR(%d) PRIMARY KEY)", g.options.TableName, g.options.IDColumnName, g.options.IDColumnSize)
+	g.log.Printf("createMigrationTableIfNotExists %s", sql)
+
 	if _, err := g.db.Exec(sql); err != nil {
 		err = errors.WithMessagef(err, "Query failed %s", sql)
 		return err
@@ -385,6 +399,7 @@ func (g *Sqlxmigrate) migrationRan(m *Migration) (bool, error) {
 
 	query := fmt.Sprintf("SELECT count(0) FROM %s WHERE %s = ?", g.options.TableName, g.options.IDColumnName)
 	query = g.db.Rebind(query)
+	g.log.Printf("migrationRan %s - %s", m.ID, query)
 
 	err := g.db.QueryRow(query, m.ID).Scan(&count)
 	if err != nil {
@@ -409,6 +424,8 @@ func (g *Sqlxmigrate) canInitializeSchema() (bool, error) {
 	// If the ID doesn't exist, we also want the list of migrations to be empty
 	var count int
 	query := fmt.Sprintf("SELECT count(0) FROM %s", g.options.TableName)
+	g.log.Printf("canInitializeSchema %s", query)
+
 	err = g.db.QueryRow(query).Scan(&count)
 	if err != nil {
 		err = errors.WithMessagef(err, "Query failed %s", query)
@@ -421,6 +438,7 @@ func (g *Sqlxmigrate) canInitializeSchema() (bool, error) {
 func (g *Sqlxmigrate) insertMigration(id string) error {
 	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (?)", g.options.TableName, g.options.IDColumnName)
 	sql = g.db.Rebind(sql)
+	g.log.Printf("insertMigration %s - %s", id, sql)
 
 	if _, err := g.db.Exec(sql, id); err != nil {
 		err = errors.WithMessagef(err, "Query failed %s", sql)
@@ -446,6 +464,8 @@ func (g *Sqlxmigrate) rollback() {
 
 func (g *Sqlxmigrate) HasTable(tableName string) (bool, error) {
 	query := fmt.Sprintf("SELECT 1 FROM %s", tableName)
+	g.log.Printf("HasTable %s - %s", tableName, query)
+
 	if _, err := g.db.Exec(query); err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
 			// postgres error

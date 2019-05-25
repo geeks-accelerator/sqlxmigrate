@@ -116,9 +116,9 @@ m := sqlxmigrate.New(db, sqlxmigrate.DefaultOptions, []*sqlxmigrate.Migration{
     // you migrations here
 })
 
-m.InitSchema(func(tx *gorm.DB) error {
-	// seed initial tables
-	return nil
+m.InitSchema(func(*sqlx.DB) error {
+    // seed initial tables
+    return nil
 })
 ```
 
