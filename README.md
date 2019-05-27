@@ -1,7 +1,7 @@
 # SqlxMigrate
 
-[![GoDoc](https://godoc.org/github.com/gitwak/sqlxmigrate?status.svg)](https://godoc.org/github.com/gitwak/sqlxmigrate)
-[![Go Report Card](https://goreportcard.com/badge/github.com/gitwak/sqlxmigrate)](https://goreportcard.com/report/github.com/gitwak/sqlxmigrate)
+[![GoDoc](https://godoc.org/github.com/geeks-accelerator/sqlxmigrate?status.svg)](https://godoc.org/github.com/geeks-accelerator/sqlxmigrate)
+[![Go Report Card](https://goreportcard.com/badge/github.com/geeks-accelerator/sqlxmigrate)](https://goreportcard.com/report/github.com/geeks-accelerator/sqlxmigrate)
 [![Build Status](https://travis-ci.org/go-sqlxmigrate/sqlxmigrate.svg?branch=master)](https://travis-ci.org/go-sqlxmigrate/sqlxmigrate)
 
 sqlxmigrate is a minimalistic database schema migration helper for sqlx. 
@@ -28,7 +28,7 @@ on a driver basis. The sql statement for creating a table in postgres, differs f
 ## Installing
 
 ```bash
-go get -u github.com/gitwak/sqlxmigrate
+go get -u github.com/geeks-accelerator/sqlxmigrate
 ```
 
 ## Usage
@@ -40,7 +40,7 @@ import (
 	"database/sql"
 	"log"
 
-	"github.com/gitwak/sqlxmigrate"
+	"github.com/geeks-accelerator/sqlxmigrate"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )

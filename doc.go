@@ -9,7 +9,7 @@
 // 	"database/sql"
 // 	"log"
 //
-// 	"github.com/gitwak/sqlxmigrate"
+// 	"github.com/geeks-accelerator/sqlxmigrate"
 // 	"github.com/jmoiron/sqlx"
 // 	_ "github.com/lib/pq"
 // )
