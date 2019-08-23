@@ -380,7 +380,7 @@ func (g *Sqlxmigrate) runMigration(migration *Migration) error {
 			g.log.Printf("Migration %s - failed - %v", migration.ID, err)
 
 			if rerr := migration.Rollback(g.tx); rerr != nil {
-				g.log.Printf("Migration %s - Rollback failed - %v", migration.ID, err)
+				g.log.Printf("Migration %s - Rollback failed - %v", migration.ID, rerr)
 			}
 
 			return err
