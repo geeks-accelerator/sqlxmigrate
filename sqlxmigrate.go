@@ -381,7 +381,7 @@ func (g *Sqlxmigrate) runMigration(migration *Migration) error {
 			g.log.Printf("Migration %s - failed - %v", migration.ID, err)
 
 			if rerr := migration.Rollback(g.tx); rerr != nil {
-				if strings.Contains(err.Error(), "current transaction is aborted") {
+				if strings.Contains(rerr.Error(), "current transaction is aborted") {
 					g.log.Printf("Migration %s - Rollback skipped, transaction is aborted", migration.ID)
 				} else {
 					g.log.Printf("Migration %s - Rollback failed - %v", migration.ID, rerr)
