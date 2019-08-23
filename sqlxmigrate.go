@@ -171,6 +171,7 @@ func (g *Sqlxmigrate) migrate(migrationID string) error {
 	if err := g.begin(); err != nil {
 		return err
 	}
+
 	defer g.rollback()
 
 	if err := g.createMigrationTableIfNotExists(); err != nil {
@@ -380,7 +381,11 @@ func (g *Sqlxmigrate) runMigration(migration *Migration) error {
 			g.log.Printf("Migration %s - failed - %v", migration.ID, err)
 
 			if rerr := migration.Rollback(g.tx); rerr != nil {
-				g.log.Printf("Migration %s - Rollback failed - %v", migration.ID, rerr)
+				if strings.Contains(err.Error(), "current transaction is aborted") {
+					g.log.Printf("Migration %s - Rollback skipped, transaction is aborted", migration.ID)
+				} else {
+					g.log.Printf("Migration %s - Rollback failed - %v", migration.ID, rerr)
+				}
 			}
 
 			return err
@@ -471,11 +476,17 @@ func (g *Sqlxmigrate) begin() error {
 }
 
 func (g *Sqlxmigrate) commit() error {
-	return g.tx.Commit()
+	err := g.tx.Commit()
+	g.tx = nil
+	return err
 }
 
 func (g *Sqlxmigrate) rollback() {
-	g.tx.Rollback()
+	if g.tx != nil {
+		g.tx.Rollback()
+		g.log.Printf("tx.rollback executed")
+		g.tx = nil
+	}
 }
 
 func (g *Sqlxmigrate) HasTable(tableName string) (bool, error) {
