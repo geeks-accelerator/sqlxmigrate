@@ -3,9 +3,9 @@ package sqlxmigrate
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"strings"
-	"log"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -500,7 +500,10 @@ func (g *Sqlxmigrate) HasTable(tableName string) (bool, error) {
 		} else if strings.Contains(err.Error(), "doesn't exist") {
 			// mysql table error
 			return false, nil
-		}
+		} else if strings.Contains(err.Error(), "no such table") {
+			// sqlite table error
+			return false, nil
+        }
 		return false, err
 	}
 	return true, nil
