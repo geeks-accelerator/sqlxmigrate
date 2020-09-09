@@ -168,12 +168,6 @@ func (g *Sqlxmigrate) migrate(migrationID string) error {
 		return err
 	}
 
-	if err := g.begin(); err != nil {
-		return err
-	}
-
-	defer g.rollback()
-
 	if err := g.createMigrationTableIfNotExists(); err != nil {
 		return err
 	}
@@ -187,9 +181,15 @@ func (g *Sqlxmigrate) migrate(migrationID string) error {
 			if err := g.runInitSchema(); err != nil {
 				return err
 			}
-			return g.commit()
+			return nil
 		}
 	}
+
+	if err := g.begin(); err != nil {
+		return err
+	}
+
+	defer g.rollback()
 
 	for _, migration := range g.migrations {
 		if err := g.runMigration(migration); err != nil {
