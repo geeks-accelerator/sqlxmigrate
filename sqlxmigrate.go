@@ -353,12 +353,6 @@ func (g *Sqlxmigrate) runInitSchema() error {
 		return err
 	}
 
-	for _, migration := range g.migrations {
-		if err := g.runMigration(migration); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
